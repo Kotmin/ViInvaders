@@ -69,6 +69,41 @@ class Enemy {
 const player1 = new Player(canvas.width / 2 - 60, playerColors[Math.floor(Math.random() * playerColors.length)]);
 const player2 = new Player(canvas.width / 2 + 60, playerColors[Math.floor(Math.random() * playerColors.length)]);
 
+
+const ws = new WebSocket("ws://" + location.hostname + "/ws");
+
+ws.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+
+  // joystick 1
+  if (data.j1x < 1500) {
+    player1.x -= player1.speed;
+    player1.active = true;
+  } else if (data.j1x > 3500) {
+    player1.x += player1.speed;
+    player1.active = true;
+  }
+  if (data.j1f) {
+    player1.shoot();
+    player1.active = true;
+  }
+
+  // joystick 2
+  if (data.j2x < 1500) {
+    player2.x -= player2.speed;
+    player2.active = true;
+  } else if (data.j2x > 3500) {
+    player2.x += player2.speed;
+    player2.active = true;
+  }
+  if (data.j2f) {
+    player2.shoot();
+    player2.active = true;
+  }
+};
+
+
+
 let enemies = [];
 
 function createEnemies() {
