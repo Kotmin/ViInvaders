@@ -1,7 +1,7 @@
 # ViInvaders
 Fight you favourite IDE
 
-ArduinoJSON
+ArduinoJSON by Benoit
 
 ## Set-up
 
