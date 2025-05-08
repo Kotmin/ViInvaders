@@ -1,0 +1,15 @@
+body {
+  margin: 0;
+  background: black;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  overflow: hidden;
+  touch-action: manipulation; /* zapobiega zoomowaniu */
+}
+
+canvas {
+  border: 2px solid white;
+  touch-action: none; /* ważne dla sterowania dotykiem */
+}
