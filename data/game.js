@@ -1,14 +1,31 @@
+// game.js z aktywacją gracza ruchem i wstrzymaniem wrogów przed aktywacją
+
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
-
 canvas.width = 800;
 canvas.height = 600;
 
 const playerColors = ["white", "lime", "cyan", "orange", "violet"];
-const enemyTypes = ["vi", "vim", "neovim"];
+const enemySprites = {
+  vi: new Image(),
+  vim: new Image(),
+  neovim: new Image()
+};
+enemySprites.vi.src = "/sprites/vi.png";
+enemySprites.vim.src = "/sprites/vim.png";
+enemySprites.neovim.src = "/sprites/neovim.png";
+
 let enemyBullets = [];
 let gameOver = false;
 let level = 1;
+let fireInterval = 1500;
+let fireTimer;
+
+function waitForSprites(callback) {
+  const allLoaded = Object.values(enemySprites).every(img => img.complete && img.naturalHeight !== 0);
+  if (allLoaded) callback();
+  else setTimeout(() => waitForSprites(callback), 100);
+}
 
 class Player {
   constructor(x, color) {
@@ -25,13 +42,17 @@ class Player {
     this.score = 0;
     this.alive = true;
     this.respawnTimer = 0;
-    this.respawnCountdown = null;
   }
 
   draw() {
     if (this.active && this.alive) {
+      ctx.beginPath();
+      ctx.moveTo(this.x, this.y);
+      ctx.lineTo(this.x - 15, this.y + 30);
+      ctx.lineTo(this.x + 15, this.y + 30);
+      ctx.closePath();
       ctx.fillStyle = this.color;
-      ctx.fillRect(this.x - this.width / 2, this.y, this.width, this.height);
+      ctx.fill();
     } else if (!this.alive && this.lives > 0) {
       const secondsLeft = Math.ceil((5000 - (Date.now() - this.respawnTimer)) / 1000);
       ctx.fillStyle = "white";
@@ -45,6 +66,8 @@ class Player {
     if (now - this.lastShot > 1000 && this.active && this.alive) {
       this.bullets.push({ x: this.x, y: this.y });
       this.lastShot = now;
+    } else if (gameOver) {
+      newGame();
     }
   }
 
@@ -81,21 +104,21 @@ class Enemy {
   }
 
   draw() {
-    ctx.fillStyle = "red";
-    ctx.font = "16px monospace";
-    ctx.fillText(this.type, this.x, this.y);
+    const sprite = enemySprites[this.type];
+    if (sprite.complete && sprite.naturalHeight !== 0) {
+      ctx.drawImage(sprite, this.x, this.y, 30, 30);
+    } else {
+      ctx.fillStyle = "red";
+      ctx.fillRect(this.x, this.y, 30, 30);
+    }
   }
 
   update() {
+    if (!player1.active && !player2.active) return;
     this.x += this.dx;
     if (this.x < 0 || this.x > canvas.width - 30) {
       this.dx *= -1;
       this.y += 10;
-    }
-
-    if (this.y > canvas.height - 100 && !gameOver) {
-      gameOver = true;
-      setTimeout(() => alert("Game Over – wróg dotarł do bazy!"), 10);
     }
   }
 }
@@ -110,64 +133,32 @@ function newGame() {
   level = 1;
   gameOver = false;
   createEnemies();
+  updateFireRate();
 }
 
-function randomColor() {
-  return playerColors[Math.floor(Math.random() * playerColors.length)];
+function updateFireRate() {
+  clearInterval(fireTimer);
+  fireInterval = Math.max(200, 1500 - level * 100);
+  fireTimer = setInterval(() => {
+    if (player1.active || player2.active) enemyFire();
+  }, fireInterval);
 }
 
 function createEnemies() {
   enemies = [];
+  const types = ["vi", "vim", "neovim"];
   const rows = 2 + level;
   const cols = 4 + level;
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
-      enemies.push(new Enemy(60 + col * 60, 50 + row * 40, enemyTypes[Math.floor(Math.random() * 3)]));
+      const type = types[Math.floor(Math.random() * types.length)];
+      enemies.push(new Enemy(60 + col * 60, 50 + row * 40, type));
     }
   }
 }
 
-function checkCollisions(player) {
-  player.bullets.forEach((b, i) => {
-    enemies.forEach((e, j) => {
-      if (b.x > e.x - 10 && b.x < e.x + 30 && b.y < e.y + 16 && b.y > e.y) {
-        enemies.splice(j, 1);
-        player.bullets.splice(i, 1);
-        player.score += 1;
-      }
-    });
-
-    enemyBullets.forEach((eb, k) => {
-      if (b.x > eb.x - 4 && b.x < eb.x + 4 && b.y < eb.y + 10 && b.y > eb.y) {
-        enemyBullets.splice(k, 1);
-        player.bullets.splice(i, 1);
-      }
-    });
-  });
-}
-
-function checkPlayerHit(player) {
-  if (!player.alive) return;
-  enemyBullets.forEach((b, i) => {
-    if (
-      b.x > player.x - player.width / 2 &&
-      b.x < player.x + player.width / 2 &&
-      b.y > player.y &&
-      b.y < player.y + player.height
-    ) {
-      player.takeHit();
-      enemyBullets.splice(i, 1);
-    }
-  });
-}
-
-function updateEnemyBullets() {
-  enemyBullets = enemyBullets.filter(b => b.y < canvas.height);
-  enemyBullets.forEach(b => {
-    b.y += 4;
-    ctx.fillStyle = "yellow";
-    ctx.fillRect(b.x - 2, b.y, 4, 10);
-  });
+function randomColor() {
+  return playerColors[Math.floor(Math.random() * playerColors.length)];
 }
 
 function enemyFire() {
@@ -186,7 +177,6 @@ function drawHUD() {
 
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-
   if (gameOver) {
     ctx.fillStyle = "red";
     ctx.font = "30px sans-serif";
@@ -217,94 +207,94 @@ function draw() {
   updateEnemyBullets();
   drawHUD();
 
-  // Level progression
   if (enemies.length === 0 && !gameOver) {
     level++;
     createEnemies();
+    updateFireRate();
+  }
+
+  if (!player1.alive && player1.lives === 0 && !player2.alive && player2.lives === 0) {
+    gameOver = true;
   }
 
   requestAnimationFrame(draw);
 }
 
-setInterval(enemyFire, 1500);
-newGame();
-draw();
+function updateEnemyBullets() {
+  enemyBullets = enemyBullets.filter(b => b.y < canvas.height);
+  enemyBullets.forEach(b => {
+    b.y += 4;
+    ctx.fillStyle = "yellow";
+    ctx.fillRect(b.x - 2, b.y, 4, 10);
+  });
+}
 
-// Input: keyboard
-document.addEventListener("keydown", (e) => {
-  if (e.key === "a") {
-    player1.x -= player1.speed;
-    player1.active = true;
-  }
-  if (e.key === "d") {
-    player1.x += player1.speed;
-    player1.active = true;
-  }
-  if (e.key === " ") {
-    player1.shoot();
-    player1.active = true;
-  }
+function checkCollisions(player) {
+  player.bullets.forEach((b, i) => {
+    enemies.forEach((e, j) => {
+      if (b.x > e.x - 10 && b.x < e.x + 30 && b.y < e.y + 16 && b.y > e.y) {
+        enemies.splice(j, 1);
+        player.bullets.splice(i, 1);
+        player.score += 1;
+      }
+    });
+    enemyBullets.forEach((eb, k) => {
+      if (b.x > eb.x - 4 && b.x < eb.x + 4 && b.y < eb.y + 10 && b.y > eb.y) {
+        enemyBullets.splice(k, 1);
+        player.bullets.splice(i, 1);
+      }
+    });
+  });
+}
 
-  if (e.key === "ArrowLeft") {
-    player2.x -= player2.speed;
-    player2.active = true;
-  }
-  if (e.key === "ArrowRight") {
-    player2.x += player2.speed;
-    player2.active = true;
-  }
-  if (e.key === "ArrowUp") {
-    player2.shoot();
-    player2.active = true;
-  }
+function checkPlayerHit(player) {
+  if (!player.alive) return;
+  enemyBullets.forEach((b, i) => {
+    if (
+      b.x > player.x - player.width / 2 &&
+      b.x < player.x + player.width / 2 &&
+      b.y > player.y &&
+      b.y < player.y + player.height
+    ) {
+      player.takeHit();
+      enemyBullets.splice(i, 1);
+    }
+  });
+}
 
-  if (e.key === "r") {
-    newGame();
-  }
+window.addEventListener("keydown", (e) => {
+  if (e.key === "a") { player1.x -= player1.speed; player1.active = true; }
+  if (e.key === "d") { player1.x += player1.speed; player1.active = true; }
+  if (e.key === " ") { player1.shoot(); player1.active = true; }
+  if (e.key === "ArrowLeft") { player2.x -= player2.speed; player2.active = true; }
+  if (e.key === "ArrowRight") { player2.x += player2.speed; player2.active = true; }
+  if (e.key === "ArrowUp") { player2.shoot(); player2.active = true; }
+  if (e.key === "r") newGame();
 });
 
-// Input: touch
 canvas.addEventListener("touchstart", (e) => {
   e.preventDefault();
   const x = e.touches[0].clientX;
   const relX = x - canvas.getBoundingClientRect().left;
-
   player1.active = true;
-  if (relX < canvas.width / 3) {
-    player1.x -= player1.speed * 1.5;
-  } else if (relX > 2 * canvas.width / 3) {
-    player1.x += player1.speed * 1.5;
-  } else {
-    player1.shoot();
-  }
+  if (relX < canvas.width / 3) player1.x -= player1.speed;
+  else if (relX > 2 * canvas.width / 3) player1.x += player1.speed;
+  else player1.shoot();
 }, { passive: false });
 
-// Input: joystick (WebSocket)
 const ws = new WebSocket("ws://" + location.hostname + "/ws");
 ws.onmessage = (event) => {
   const data = JSON.parse(event.data);
+  if (data.j1x < 1500) { player1.x -= player1.speed; player1.active = true; }
+  else if (data.j1x > 3500) { player1.x += player1.speed; player1.active = true; }
+  if (data.j1f) { player1.shoot(); player1.active = true; }
 
-  if (data.j1x < 1500) {
-    player1.x -= player1.speed;
-    player1.active = true;
-  } else if (data.j1x > 3500) {
-    player1.x += player1.speed;
-    player1.active = true;
-  }
-  if (data.j1f) {
-    player1.shoot();
-    player1.active = true;
-  }
-
-  if (data.j2x < 1500) {
-    player2.x -= player2.speed;
-    player2.active = true;
-  } else if (data.j2x > 3500) {
-    player2.x += player2.speed;
-    player2.active = true;
-  }
-  if (data.j2f) {
-    player2.shoot();
-    player2.active = true;
-  }
+  if (data.j2x < 1500) { player2.x -= player2.speed; player2.active = true; }
+  else if (data.j2x > 3500) { player2.x += player2.speed; player2.active = true; }
+  if (data.j2f) { player2.shoot(); player2.active = true; }
 };
+
+waitForSprites(() => {
+  newGame();
+  draw();
+});

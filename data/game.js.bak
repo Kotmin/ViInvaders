@@ -8,6 +8,7 @@ const playerColors = ["white", "lime", "cyan", "orange", "violet"];
 const enemyTypes = ["vi", "vim", "neovim"];
 let enemyBullets = [];
 let gameOver = false;
+let level = 1;
 
 class Player {
   constructor(x, color) {
@@ -21,14 +22,21 @@ class Player {
     this.lastShot = 0;
     this.active = false;
     this.lives = 3;
+    this.score = 0;
     this.alive = true;
     this.respawnTimer = 0;
+    this.respawnCountdown = null;
   }
 
   draw() {
     if (this.active && this.alive) {
       ctx.fillStyle = this.color;
       ctx.fillRect(this.x - this.width / 2, this.y, this.width, this.height);
+    } else if (!this.alive && this.lives > 0) {
+      const secondsLeft = Math.ceil((5000 - (Date.now() - this.respawnTimer)) / 1000);
+      ctx.fillStyle = "white";
+      ctx.font = "14px sans-serif";
+      ctx.fillText(`P${this === player1 ? 1 : 2} respawn in ${secondsLeft}`, this.x - 40, this.y - 10);
     }
   }
 
@@ -92,10 +100,17 @@ class Enemy {
   }
 }
 
-const player1 = new Player(canvas.width / 2 - 60, randomColor());
-const player2 = new Player(canvas.width / 2 + 60, randomColor());
-
+let player1, player2;
 let enemies = [];
+
+function newGame() {
+  player1 = new Player(canvas.width / 2 - 60, randomColor());
+  player2 = new Player(canvas.width / 2 + 60, randomColor());
+  enemyBullets = [];
+  level = 1;
+  gameOver = false;
+  createEnemies();
+}
 
 function randomColor() {
   return playerColors[Math.floor(Math.random() * playerColors.length)];
@@ -103,9 +118,11 @@ function randomColor() {
 
 function createEnemies() {
   enemies = [];
-  for (let row = 0; row < 2; row++) {
-    for (let col = 0; col < 6; col++) {
-      enemies.push(new Enemy(100 + col * 60, 50 + row * 50, enemyTypes[Math.floor(Math.random() * 3)]));
+  const rows = 2 + level;
+  const cols = 4 + level;
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      enemies.push(new Enemy(60 + col * 60, 50 + row * 40, enemyTypes[Math.floor(Math.random() * 3)]));
     }
   }
 }
@@ -113,24 +130,15 @@ function createEnemies() {
 function checkCollisions(player) {
   player.bullets.forEach((b, i) => {
     enemies.forEach((e, j) => {
-      if (
-        b.x > e.x - 10 &&
-        b.x < e.x + 30 &&
-        b.y < e.y + 16 &&
-        b.y > e.y
-      ) {
+      if (b.x > e.x - 10 && b.x < e.x + 30 && b.y < e.y + 16 && b.y > e.y) {
         enemies.splice(j, 1);
         player.bullets.splice(i, 1);
+        player.score += 1;
       }
     });
 
     enemyBullets.forEach((eb, k) => {
-      if (
-        b.x > eb.x - 4 &&
-        b.x < eb.x + 4 &&
-        b.y < eb.y + 10 &&
-        b.y > eb.y
-      ) {
+      if (b.x > eb.x - 4 && b.x < eb.x + 4 && b.y < eb.y + 10 && b.y > eb.y) {
         enemyBullets.splice(k, 1);
         player.bullets.splice(i, 1);
       }
@@ -171,8 +179,9 @@ function enemyFire() {
 function drawHUD() {
   ctx.fillStyle = "white";
   ctx.font = "16px monospace";
-  ctx.fillText(`P1: x${player1.lives}`, 20, 20);
-  ctx.fillText(`P2: x${player2.lives}`, canvas.width - 100, 20);
+  ctx.fillText(`P1: x${player1.lives} (${player1.score})`, 20, 20);
+  ctx.fillText(`P2: x${player2.lives} (${player2.score})`, canvas.width - 180, 20);
+  ctx.fillText(`Level: ${level}`, canvas.width / 2 - 30, 20);
 }
 
 function draw() {
@@ -208,13 +217,20 @@ function draw() {
   updateEnemyBullets();
   drawHUD();
 
+  // Level progression
+  if (enemies.length === 0 && !gameOver) {
+    level++;
+    createEnemies();
+  }
+
   requestAnimationFrame(draw);
 }
 
 setInterval(enemyFire, 1500);
-createEnemies();
+newGame();
 draw();
 
+// Input: keyboard
 document.addEventListener("keydown", (e) => {
   if (e.key === "a") {
     player1.x -= player1.speed;
@@ -237,12 +253,17 @@ document.addEventListener("keydown", (e) => {
     player2.x += player2.speed;
     player2.active = true;
   }
-  if (e.key === "Enter") {
+  if (e.key === "ArrowUp") {
     player2.shoot();
     player2.active = true;
   }
+
+  if (e.key === "r") {
+    newGame();
+  }
 });
 
+// Input: touch
 canvas.addEventListener("touchstart", (e) => {
   e.preventDefault();
   const x = e.touches[0].clientX;
@@ -258,8 +279,8 @@ canvas.addEventListener("touchstart", (e) => {
   }
 }, { passive: false });
 
+// Input: joystick (WebSocket)
 const ws = new WebSocket("ws://" + location.hostname + "/ws");
-
 ws.onmessage = (event) => {
   const data = JSON.parse(event.data);
 
