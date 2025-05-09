@@ -5,21 +5,44 @@ const ctx = canvas.getContext("2d");
 canvas.width = 800;
 canvas.height = 600;
 
+
+const pauseBtn = document.createElement("button");
+pauseBtn.innerText = "⏸️ Pauza";
+pauseBtn.style.position = "absolute";
+pauseBtn.style.top = "10px";
+pauseBtn.style.left = "10px";
+pauseBtn.style.zIndex = 10;
+pauseBtn.onclick = () => paused = !paused;
+document.body.appendChild(pauseBtn);
+
+const restartBtn = document.createElement("button");
+restartBtn.innerText = "🔄 Restart";
+restartBtn.style.position = "absolute";
+restartBtn.style.top = "10px";
+restartBtn.style.left = "100px";
+restartBtn.style.zIndex = 10;
+restartBtn.onclick = () => newGame();
+document.body.appendChild(restartBtn);
+
+
 const playerColors = ["white", "lime", "cyan", "orange", "violet"];
 const enemySprites = {
   vi: new Image(),
   vim: new Image(),
   neovim: new Image()
 };
-enemySprites.vi.src = "/sprites/vi.png";
+enemySprites.vi.src = "/sprites/p_vi2._nt.png";
 enemySprites.vim.src = "/sprites/vim.png";
 enemySprites.neovim.src = "/sprites/neovim.png";
 
 let enemyBullets = [];
+let showStartScreen = true;
 let gameOver = false;
+let paused = false;
 let level = 1;
 let fireInterval = 1500;
 let fireTimer;
+
 
 function waitForSprites(callback) {
   const allLoaded = Object.values(enemySprites).every(img => img.complete && img.naturalHeight !== 0);
@@ -175,12 +198,40 @@ function drawHUD() {
   ctx.fillText(`Level: ${level}`, canvas.width / 2 - 30, 20);
 }
 
+function waitForSprites(callback) {
+  const allLoaded = Object.values(enemySprites).every(img => img.complete && img.naturalHeight !== 0);
+  if (allLoaded) callback();
+  else setTimeout(() => waitForSprites(callback), 100);
+}
+
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (showStartScreen) {
+    ctx.fillStyle = "white";
+    ctx.font = "28px sans-serif";
+    ctx.fillText("Tap, press, or move to start", canvas.width / 2 - 180, canvas.height / 2);
+    requestAnimationFrame(draw);
+    return;
+  }
+
+  if (paused) {
+    ctx.fillStyle = "white";
+    ctx.font = "28px sans-serif";
+    ctx.fillText("PAUSED", canvas.width / 2 - 60, canvas.height / 2);
+    requestAnimationFrame(draw);
+    return;
+  }
+
   if (gameOver) {
     ctx.fillStyle = "red";
     ctx.font = "30px sans-serif";
-    ctx.fillText("GAME OVER", canvas.width / 2 - 100, canvas.height / 2);
+    ctx.fillText("GAME OVER", canvas.width / 2 - 100, canvas.height / 2 - 20);
+    ctx.fillStyle = "white";
+    ctx.font = "20px sans-serif";
+    ctx.fillText(`Score P1: ${player1.score} | P2: ${player2.score}`, canvas.width / 2 - 110, canvas.height / 2 + 20);
+    ctx.fillText("Press shoot or move to restart", canvas.width / 2 - 150, canvas.height / 2 + 50);
+    requestAnimationFrame(draw);
     return;
   }
 
@@ -261,14 +312,22 @@ function checkPlayerHit(player) {
     }
   });
 }
+function activatePlayer(player) {
+  if (showStartScreen) showStartScreen = false;
+  if (gameOver) {
+    gameOver = false;
+    newGame();
+  }
+  player.active = true;
+}
 
 window.addEventListener("keydown", (e) => {
-  if (e.key === "a") { player1.x -= player1.speed; player1.active = true; }
-  if (e.key === "d") { player1.x += player1.speed; player1.active = true; }
-  if (e.key === " ") { player1.shoot(); player1.active = true; }
-  if (e.key === "ArrowLeft") { player2.x -= player2.speed; player2.active = true; }
-  if (e.key === "ArrowRight") { player2.x += player2.speed; player2.active = true; }
-  if (e.key === "ArrowUp") { player2.shoot(); player2.active = true; }
+  if (e.key === "a") { player1.x -= player1.speed; activatePlayer(player1); }
+  if (e.key === "d") { player1.x += player1.speed; activatePlayer(player1); }
+  if (e.key === " ") { player1.shoot(); activatePlayer(player1); }
+  if (e.key === "ArrowLeft") { player2.x -= player2.speed; activatePlayer(player2); }
+  if (e.key === "ArrowRight") { player2.x += player2.speed; activatePlayer(player2); }
+  if (e.key === "ArrowUp") { player2.shoot(); activatePlayer(player2); }
   if (e.key === "r") newGame();
 });
 
@@ -276,7 +335,7 @@ canvas.addEventListener("touchstart", (e) => {
   e.preventDefault();
   const x = e.touches[0].clientX;
   const relX = x - canvas.getBoundingClientRect().left;
-  player1.active = true;
+  activatePlayer(player1);
   if (relX < canvas.width / 3) player1.x -= player1.speed;
   else if (relX > 2 * canvas.width / 3) player1.x += player1.speed;
   else player1.shoot();
@@ -285,13 +344,13 @@ canvas.addEventListener("touchstart", (e) => {
 const ws = new WebSocket("ws://" + location.hostname + "/ws");
 ws.onmessage = (event) => {
   const data = JSON.parse(event.data);
-  if (data.j1x < 1500) { player1.x -= player1.speed; player1.active = true; }
-  else if (data.j1x > 3500) { player1.x += player1.speed; player1.active = true; }
-  if (data.j1f) { player1.shoot(); player1.active = true; }
+  if (data.j1x < 1500) { player1.x -= player1.speed; activatePlayer(player1); }
+  else if (data.j1x > 3500) { player1.x += player1.speed; activatePlayer(player1); }
+  if (data.j1f) { player1.shoot(); activatePlayer(player1); }
 
-  if (data.j2x < 1500) { player2.x -= player2.speed; player2.active = true; }
-  else if (data.j2x > 3500) { player2.x += player2.speed; player2.active = true; }
-  if (data.j2f) { player2.shoot(); player2.active = true; }
+  if (data.j2x < 1500) { player2.x -= player2.speed; activatePlayer(player2); }
+  else if (data.j2x > 3500) { player2.x += player2.speed; activatePlayer(player2); }
+  if (data.j2f) { player2.shoot(); activatePlayer(player2); }
 };
 
 waitForSprites(() => {
