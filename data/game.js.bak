@@ -312,9 +312,20 @@ function draw() {
     ctx.fillStyle = "white";
     ctx.font = "28px sans-serif";
     ctx.fillText("Tap, press, or move to start", canvas.width / 2 - 180, canvas.height / 2);
+ 
+    ctx.font = "18px sans-serif";
+    const quoteWidth = ctx.measureText(`"${quoteText}"`).width;
+    ctx.fillText(`"${quoteText}"`, (canvas.width - quoteWidth) / 2, canvas.height / 2 + 40);
+
+    ctx.font = "16px sans-serif";
+    const authorWidth = ctx.measureText(`— ${quoteAuthor}`).width;
+    ctx.fillText(`— ${quoteAuthor}`, (canvas.width - authorWidth) / 2, canvas.height / 2 + 65);
+
+
     requestAnimationFrame(draw);
     return;
-  }
+   }
+
 
   if (paused) {
     ctx.fillStyle = "white";
@@ -331,7 +342,21 @@ function draw() {
     ctx.fillStyle = "white";
     ctx.font = "20px sans-serif";
     ctx.fillText(`Score P1: ${player1.score} | P2: ${player2.score}`, canvas.width / 2 - 110, canvas.height / 2 + 20);
+	
+	getMotivationalQuote();
+	
     ctx.fillText("Press shoot or move to restart", canvas.width / 2 - 150, canvas.height / 2 + 50);
+	
+	
+	ctx.font = "18px sans-serif";
+    const quoteWidth = ctx.measureText(`"${quoteText}"`).width;
+    ctx.fillText(`"${quoteText}"`, (canvas.width - quoteWidth) / 2, canvas.height / 2 + 40);
+
+    ctx.font = "16px sans-serif";
+    const authorWidth = ctx.measureText(`— ${quoteAuthor}`).width;
+    ctx.fillText(`— ${quoteAuthor}`, (canvas.width - authorWidth) / 2, canvas.height / 2 + 65);
+	
+	
     requestAnimationFrame(draw);
     return;
   }
@@ -376,9 +401,10 @@ function draw() {
   
   }
 
-  if (!player1.alive && player1.lives === 0 && !player2.alive && player2.lives === 0) {
-    gameOver = true;
-  }
+  const activePlayers = [player1, player2].filter(p => p.active);
+  if (activePlayers.length > 0 && activePlayers.every(p => !p.alive && p.lives === 0)) {
+  gameOver = true;
+}
 
   requestAnimationFrame(draw);
 }
