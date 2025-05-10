@@ -3,6 +3,10 @@ const ctx = canvas.getContext("2d");
 
 let player1 = null;
 let player2 = null;
+let reconnectAttempts = 0;
+let reconnecting = false;
+let ws = null;
+let lastGameStart = 0;
 
 function resizeCanvas() {
   const ratio = 4 / 3;
@@ -163,7 +167,6 @@ class Player {
     }
   }
 }
-
 
 class Enemy {
   constructor(x, y, type) {
@@ -391,18 +394,34 @@ canvas.addEventListener("touchstart", (e) => {
 }, { passive: false });
 
 
-const ws = new WebSocket("ws://" + location.hostname + "/ws");
-ws.onmessage = (event) => {
-  const data = JSON.parse(event.data);
-  if (data.j1x < 1500) { player1.x -= player1.speed; activatePlayer(player1); }
-  else if (data.j1x > 3500) { player1.x += player1.speed; activatePlayer(player1); }
-  if (data.j1f) { player1.shoot(); activatePlayer(player1); }
 
-  if (data.j2x < 1500) { player2.x -= player2.speed; activatePlayer(player2); }
-  else if (data.j2x > 3500) { player2.x += player2.speed; activatePlayer(player2); }
-  if (data.j2f) { player2.shoot(); activatePlayer(player2); }
-};
+function setupWebSocket() {
+  ws = new WebSocket("ws://" + location.hostname + "/ws");
 
+  ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    if (data.j1x < 1500) { player1.moveLeft(); activatePlayer(player1); }
+    else if (data.j1x > 3500) { player1.moveRight(); activatePlayer(player1); }
+    if (data.j1f) { player1.shoot(); activatePlayer(player1); }
+
+    if (data.j2x < 1500) { player2.moveLeft(); activatePlayer(player2); }
+    else if (data.j2x > 3500) { player2.moveRight(); activatePlayer(player2); }
+    if (data.j2f) { player2.shoot(); activatePlayer(player2); }
+  };
+
+  ws.onclose = ws.onerror = () => {
+    if (!reconnecting) {
+      reconnecting = true;
+      setTimeout(() => {
+        reconnecting = false;
+        reconnectAttempts++;
+        setupWebSocket();
+      }, Math.min(1000 * reconnectAttempts, 10000));
+    }
+  };
+}
+
+setupWebSocket();
 
 waitForSprites(() => {
   newGame();

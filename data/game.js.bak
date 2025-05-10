@@ -3,6 +3,10 @@ const ctx = canvas.getContext("2d");
 
 let player1 = null;
 let player2 = null;
+let reconnectAttempts = 0;
+let reconnecting = false;
+let ws = null;
+let lastGameStart = 0;
 
 function resizeCanvas() {
   const ratio = 4 / 3;
@@ -59,7 +63,7 @@ restartBtn.style.top = "10px";
 restartBtn.onclick = () => newGame();
 document.body.appendChild(restartBtn);
 
-resizeCanvas();
+// resizeCanvas();
 
 
 
@@ -135,35 +139,7 @@ class Player {
     if (now - this.lastShot > 1000 && this.active && this.alive) {
       this.bullets.push({ x: this.x, y: this.y });
       this.lastShot = now;
-    } else if (gameOver) {
-      newGame();
-    }
-  }
-
-  updateBullets() {
-    this.bullets = this.bullets.filter(b => b.y > 0);
-    this.bullets.forEach(b => b.y -= 7);
-    ctx.fillStyle = this.color;
-    this.bullets.forEach(b => ctx.fillRect(b.x - 2, b.y, 4, 10));
-  }
-
-  takeHit() {
-    if (!this.alive || this.lives <= 0) return;
-    this.lives -= 1;
-    this.alive = false;
-    this.respawnTimer = Date.now();
-  }
-
-  updateRespawn() {
-    if (!this.alive && this.lives > 0) {
-      const now = Date.now();
-      if (now - this.respawnTimer >= 5000) {
-        this.alive = true;
-      }
-    }
-  }
-}
-
+    } else if (gameOver
 
 class Enemy {
   constructor(x, y, type) {
@@ -391,18 +367,34 @@ canvas.addEventListener("touchstart", (e) => {
 }, { passive: false });
 
 
-const ws = new WebSocket("ws://" + location.hostname + "/ws");
-ws.onmessage = (event) => {
-  const data = JSON.parse(event.data);
-  if (data.j1x < 1500) { player1.x -= player1.speed; activatePlayer(player1); }
-  else if (data.j1x > 3500) { player1.x += player1.speed; activatePlayer(player1); }
-  if (data.j1f) { player1.shoot(); activatePlayer(player1); }
 
-  if (data.j2x < 1500) { player2.x -= player2.speed; activatePlayer(player2); }
-  else if (data.j2x > 3500) { player2.x += player2.speed; activatePlayer(player2); }
-  if (data.j2f) { player2.shoot(); activatePlayer(player2); }
-};
+function setupWebSocket() {
+  ws = new WebSocket("ws://" + location.hostname + "/ws");
 
+  ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    if (data.j1x < 1500) { player1.moveLeft(); activatePlayer(player1); }
+    else if (data.j1x > 3500) { player1.moveRight(); activatePlayer(player1); }
+    if (data.j1f) { player1.shoot(); activatePlayer(player1); }
+
+    if (data.j2x < 1500) { player2.moveLeft(); activatePlayer(player2); }
+    else if (data.j2x > 3500) { player2.moveRight(); activatePlayer(player2); }
+    if (data.j2f) { player2.shoot(); activatePlayer(player2); }
+  };
+
+  ws.onclose = ws.onerror = () => {
+    if (!reconnecting) {
+      reconnecting = true;
+      setTimeout(() => {
+        reconnecting = false;
+        reconnectAttempts++;
+        setupWebSocket();
+      }, Math.min(1000 * reconnectAttempts, 10000));
+    }
+  };
+}
+
+setupWebSocket();
 
 waitForSprites(() => {
   newGame();
