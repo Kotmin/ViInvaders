@@ -1,15 +1,31 @@
 body {
   margin: 0;
   background: black;
+  overflow: hidden;
+  touch-action: manipulation;
   display: flex;
   justify-content: center;
   align-items: center;
   height: 100vh;
-  overflow: hidden;
-  touch-action: manipulation; /* zapobiega zoomowaniu */
 }
 
 canvas {
   border: 2px solid white;
-  touch-action: none; /* ważne dla sterowania dotykiem */
+  touch-action: none;
 }
+
+.game-button {
+  position: absolute;
+  padding: 10px 15px;
+  background: transparent;
+  color: white;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 12px;
+  border: 2px solid white;
+  border-radius: 8px;
+  cursor: pointer;
+  z-index: 1000;
+  text-shadow: 1px 1px black;
+}
+
+

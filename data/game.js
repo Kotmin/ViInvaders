@@ -1,28 +1,66 @@
-// game.js z aktywacją gracza ruchem i wstrzymaniem wrogów przed aktywacją
-
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
-canvas.width = 800;
-canvas.height = 600;
 
+let player1 = null;
+let player2 = null;
+
+function resizeCanvas() {
+  const ratio = 4 / 3;
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  if (w / h > ratio) {
+    canvas.height = h;
+    canvas.width = h * ratio;
+  } else {
+    canvas.width = w;
+    canvas.height = w / ratio;
+  }
+  if (player1) {
+    player1.y = canvas.height - 50;
+    player1.x = canvas.width / 2 - 60;
+  }
+  if (player2) {
+    player2.y = canvas.height - 50;
+    player2.x = canvas.width / 2 + 60;
+  }
+}
+window.addEventListener('resize', resizeCanvas);
+
+let wakeLock = null;
+async function requestWakeLock() {
+  try {
+    if ('wakeLock' in navigator) {
+		wakeLock = await navigator.wakeLock.request('screen');
+	}
+  } catch (err) {
+    console.warn("WakeLock error:", err);
+  }
+}
+document.addEventListener("visibilitychange", () => {
+  if (wakeLock !== null && document.visibilityState === "visible") {
+    requestWakeLock();
+  }
+});
+requestWakeLock();
 
 const pauseBtn = document.createElement("button");
 pauseBtn.innerText = "⏸️ Pauza";
-pauseBtn.style.position = "absolute";
+pauseBtn.className = "game-button";
+pauseBtn.style.right = "120px";
 pauseBtn.style.top = "10px";
-pauseBtn.style.left = "10px";
-pauseBtn.style.zIndex = 10;
 pauseBtn.onclick = () => paused = !paused;
 document.body.appendChild(pauseBtn);
 
 const restartBtn = document.createElement("button");
 restartBtn.innerText = "🔄 Restart";
-restartBtn.style.position = "absolute";
+restartBtn.className = "game-button";
+restartBtn.style.right = "10px";
 restartBtn.style.top = "10px";
-restartBtn.style.left = "100px";
-restartBtn.style.zIndex = 10;
 restartBtn.onclick = () => newGame();
 document.body.appendChild(restartBtn);
+
+// resizeCanvas();
+
 
 
 const playerColors = ["white", "lime", "cyan", "orange", "violet"];
@@ -65,6 +103,14 @@ class Player {
     this.score = 0;
     this.alive = true;
     this.respawnTimer = 0;
+  }
+
+  moveLeft() {
+    this.x = Math.max(this.x - this.speed, this.width / 2);
+  }
+
+  moveRight() {
+    this.x = Math.min(this.x + this.speed, canvas.width - this.width / 2);
   }
 
   draw() {
@@ -118,6 +164,7 @@ class Player {
   }
 }
 
+
 class Enemy {
   constructor(x, y, type) {
     this.x = x;
@@ -146,12 +193,13 @@ class Enemy {
   }
 }
 
-let player1, player2;
+
 let enemies = [];
 
 function newGame() {
   player1 = new Player(canvas.width / 2 - 60, randomColor());
   player2 = new Player(canvas.width / 2 + 60, randomColor());
+  resizeCanvas();
   enemyBullets = [];
   level = 1;
   gameOver = false;
@@ -321,12 +369,13 @@ function activatePlayer(player) {
   player.active = true;
 }
 
+
 window.addEventListener("keydown", (e) => {
-  if (e.key === "a") { player1.x -= player1.speed; activatePlayer(player1); }
-  if (e.key === "d") { player1.x += player1.speed; activatePlayer(player1); }
+  if (e.key === "a") { player1.moveLeft(); activatePlayer(player1); }
+  if (e.key === "d") { player1.moveRight(); activatePlayer(player1); }
   if (e.key === " ") { player1.shoot(); activatePlayer(player1); }
-  if (e.key === "ArrowLeft") { player2.x -= player2.speed; activatePlayer(player2); }
-  if (e.key === "ArrowRight") { player2.x += player2.speed; activatePlayer(player2); }
+  if (e.key === "ArrowLeft") { player2.moveLeft(); activatePlayer(player2); }
+  if (e.key === "ArrowRight") { player2.moveRight(); activatePlayer(player2); }
   if (e.key === "ArrowUp") { player2.shoot(); activatePlayer(player2); }
   if (e.key === "r") newGame();
 });
@@ -341,6 +390,7 @@ canvas.addEventListener("touchstart", (e) => {
   else player1.shoot();
 }, { passive: false });
 
+
 const ws = new WebSocket("ws://" + location.hostname + "/ws");
 ws.onmessage = (event) => {
   const data = JSON.parse(event.data);
@@ -352,6 +402,7 @@ ws.onmessage = (event) => {
   else if (data.j2x > 3500) { player2.x += player2.speed; activatePlayer(player2); }
   if (data.j2f) { player2.shoot(); activatePlayer(player2); }
 };
+
 
 waitForSprites(() => {
   newGame();

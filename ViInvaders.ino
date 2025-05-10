@@ -34,6 +34,26 @@ void notifyClients() {
   ws.textAll(msg);
 }
 
+void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client,
+               AwsEventType type, void *arg, uint8_t *data, size_t len) {
+  switch (type) {
+    case WS_EVT_CONNECT:
+      Serial.printf("[WS] Client %u connected from %s\n", client->id(), client->remoteIP().toString().c_str());
+      break;
+    case WS_EVT_DISCONNECT:
+      Serial.printf("[WS] Client %u disconnected\n", client->id());
+      break;
+    case WS_EVT_ERROR:
+      Serial.printf("[WS] Error on client %u\n", client->id());
+      break;
+    case WS_EVT_DATA:
+      // Optional: handle incoming client messages here
+      break;
+    default:
+      break;
+  }
+}
+
 
 void setup() {
   Serial.begin(115200);
@@ -57,10 +77,12 @@ void setup() {
     request->send(SPIFFS, "/index.html", "text/html");
   });
 
-  ws.onEvent([](AsyncWebSocket *server, AsyncWebSocketClient *client,
-                AwsEventType type, void *arg, uint8_t *data, size_t len) {
-    // optional: handle messages from clients
-  });
+  // ws.onEvent([](AsyncWebSocket *server, AsyncWebSocketClient *client,
+  //               AwsEventType type, void *arg, uint8_t *data, size_t len) {
+  //   // optional: handle messages from clients
+  // });
+  
+  ws.onEvent(onWsEvent);
   server.addHandler(&ws);
 
   server.begin();
@@ -72,4 +94,5 @@ void loop() {
     notifyClients();
     lastSend = millis();
   }
+  ws.cleanupClients(); // rm unactive clients
 }
