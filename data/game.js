@@ -8,6 +8,41 @@ let reconnecting = false;
 let ws = null;
 let lastGameStart = 0;
 
+const enemyFireDelays = {
+  vi: 3000,
+  vim: 2000,
+  neovim: 1000
+};
+
+
+
+let quoteText = "";
+let quoteAuthor = "";
+
+const fallbackQuotes = [
+  { text: "Keep calm and code on.", author: "Anonymous" },
+  { text: "There is no place like 127.0.0.1.", author: "Unknown" },
+  { text: "First, solve the problem. Then, write the code.", author: "John Johnson" },
+  { text: "Code is like humor. When you have to explain it, it’s bad.", author: "Cory House" },
+  { text: "The best way to get a project done faster is to start sooner.", author: "Jim Highsmith" }
+];
+
+async function getMotivationalQuote() {
+  try {
+    const res = await fetch("https://api.quotable.io/random?maxLength=120&tags=technology|motivational|famous-quotes");
+    const data = await res.json();
+    quoteText = data.content || fallbackQuotes[0].text;
+    quoteAuthor = data.author || fallbackQuotes[0].author;
+  } catch (err) {
+    const fallback = fallbackQuotes[Math.floor(Math.random() * fallbackQuotes.length)];
+    quoteText = fallback.text;
+    quoteAuthor = fallback.author;
+  }
+}
+
+
+
+
 function resizeCanvas() {
   const ratio = 4 / 3;
   const w = window.innerWidth;
@@ -48,7 +83,7 @@ document.addEventListener("visibilitychange", () => {
 requestWakeLock();
 
 const pauseBtn = document.createElement("button");
-pauseBtn.innerText = "⏸️ Pauza";
+pauseBtn.innerText = "⏸️ Pause";
 pauseBtn.className = "game-button";
 pauseBtn.style.right = "120px";
 pauseBtn.style.top = "10px";
@@ -56,7 +91,7 @@ pauseBtn.onclick = () => paused = !paused;
 document.body.appendChild(pauseBtn);
 
 const restartBtn = document.createElement("button");
-restartBtn.innerText = "🔄 Restart";
+restartBtn.innerText = "🔄 Reset";
 restartBtn.className = "game-button";
 restartBtn.style.right = "10px";
 restartBtn.style.top = "10px";
@@ -64,7 +99,7 @@ restartBtn.onclick = () => newGame();
 document.body.appendChild(restartBtn);
 
 // resizeCanvas();
-
+getMotivationalQuote();
 
 
 const playerColors = ["white", "lime", "cyan", "orange", "violet"];
@@ -174,6 +209,7 @@ class Enemy {
     this.y = y;
     this.dx = 1;
     this.type = type;
+	this.nextFireTime = Date.now() + Math.random() * enemyFireDelays[type];
   }
 
   draw() {
@@ -194,6 +230,15 @@ class Enemy {
       this.y += 10;
     }
   }
+  
+  canFire() {
+    return Date.now() >= this.nextFireTime;
+  }
+  
+  resetFireCooldown() {
+    this.nextFireTime = Date.now() + enemyFireDelays[this.type];
+  }
+  
 }
 
 
@@ -236,10 +281,15 @@ function randomColor() {
 }
 
 function enemyFire() {
-  if (enemies.length === 0 || gameOver) return;
-  const shooter = enemies[Math.floor(Math.random() * enemies.length)];
-  enemyBullets.push({ x: shooter.x + 10, y: shooter.y + 10 });
+  if (gameOver || enemies.length === 0) return;
+  enemies.forEach(enemy => {
+    if (enemy.canFire()) {
+      enemyBullets.push({ x: enemy.x + 10, y: enemy.y + 10 });
+      enemy.resetFireCooldown();
+    }
+  });
 }
+
 
 function drawHUD() {
   ctx.fillStyle = "white";
@@ -262,9 +312,17 @@ function draw() {
     ctx.fillStyle = "white";
     ctx.font = "28px sans-serif";
     ctx.fillText("Tap, press, or move to start", canvas.width / 2 - 180, canvas.height / 2);
+ 
+    ctx.font = "18px sans-serif";
+    ctx.fillText(`"${quoteText}"`, canvas.width / 2 - 180, canvas.height / 2 + 40);
+
+    ctx.font = "16px sans-serif";
+    ctx.fillText(`— ${quoteAuthor}`, canvas.width / 2 - 180, canvas.height / 2 + 65);
+
     requestAnimationFrame(draw);
     return;
-  }
+   }
+
 
   if (paused) {
     ctx.fillStyle = "white";
@@ -313,6 +371,17 @@ function draw() {
     level++;
     createEnemies();
     updateFireRate();
+	
+	[player1, player2].forEach(p => {
+    if (p.lives < 3) {
+      p.lives++;
+      if (!p.alive) {
+        p.alive = false;
+        p.respawnTimer = Date.now();
+      }
+    }
+  });
+  
   }
 
   if (!player1.alive && player1.lives === 0 && !player2.alive && player2.lives === 0) {
