@@ -1,13 +1,17 @@
 #include <ESPAsyncWebServer.h>
 #include <AsyncTCP.h>
+// #include <HTTPClient.h>
 
 
 #include <WiFi.h>
 #include <SPIFFS.h>
 
 #include <ArduinoJson.h>
+// External Internet Source
+const char* ssid_sta = "NetworkName";
+const char* password_sta = "SecretPassword";
 
-
+// AP: for players
 const char* ssid = "ViInvaders";
 const char* password = "editorwar";
 
@@ -21,6 +25,10 @@ AsyncWebSocket ws("/ws");  // websocket endpoint
 #define JOY2_X 35
 #define JOY2_SW 26
 
+const char* quoteCachePath = "/quote.json";
+const char* quoteAPI = "https://api.quotable.io/random?maxLength=120&tags=technology|motivational|famous-quotes";
+
+
 void notifyClients() {
   StaticJsonDocument<128> doc;
 
@@ -33,6 +41,32 @@ void notifyClients() {
   serializeJson(doc, msg);
   ws.textAll(msg);
 }
+
+// void fetchAndCacheQuote() {
+//   if (WiFi.status() == WL_CONNECTED) {
+//     HTTPClient http;
+//     http.begin(quoteAPI);
+//     int httpCode = http.GET();
+
+//     if (httpCode == 200) {
+//       String payload = http.getString();
+//       File file = SPIFFS.open(quoteCachePath, FILE_WRITE);
+//       if (file) {
+//         file.print(payload);
+//         file.close();
+//         Serial.println("Quote downloaded and cached.");
+//       }
+//     } else {
+//       Serial.printf("HTTP error: %d\n", httpCode);
+//     }
+
+//     http.end();
+//   } else {
+//     Serial.println("No internet: skipping quote fetch");
+//   }
+// }
+
+
 
 void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client,
                AwsEventType type, void *arg, uint8_t *data, size_t len) {
@@ -62,13 +96,30 @@ void setup() {
 
   // Start SPIFFS
   if(!SPIFFS.begin(true)){
-    Serial.println("Błąd SPIFFS");
+    Serial.println("SPIFFS Error");
     return;
   }
 
+  // WiFi.mode(WIFI_AP_STA);  // both: client + AP - AP just for players do not provide InternetAccess
+
+  // // STA (Internet)
+  // WiFi.begin(ssid_sta, password_sta);
+  // Serial.print(" Wi-Fi (STA) connecting: ");
+  // for (int i = 0; i < 20 && WiFi.status() != WL_CONNECTED; ++i) {
+  //   delay(500);
+  //   Serial.print(".");
+  // }
+  // if (WiFi.status() == WL_CONNECTED) {
+  //   Serial.println("\nConnected with WAN:");
+  //   Serial.println(WiFi.localIP());
+  // } else {
+  //   Serial.println("\nCannot conect to the Internet");
+  // }
+
+
   //  Access Point Mode
   WiFi.softAP(ssid, password);
-  Serial.println("Access Point uruchomiony");
+  Serial.println("Access Point enabled");
   Serial.println(WiFi.softAPIP());
 
   // File serve
@@ -81,11 +132,26 @@ void setup() {
   //               AwsEventType type, void *arg, uint8_t *data, size_t len) {
   //   // optional: handle messages from clients
   // });
+
+   // Endpoint to serve quote (cached / fallback)
+  // server.on("/quote", HTTP_GET, [](AsyncWebServerRequest *request) {
+  //   if (SPIFFS.exists(quoteCachePath)) {
+  //     request->send(SPIFFS, quoteCachePath, "application/json");
+  //   } else {
+  //     StaticJsonDocument<192> doc;
+  //     doc["content"] = "No internet. Stay sharp, Commander!";
+  //     doc["author"] = "ESP32";
+  //     String out;
+  //     serializeJson(doc, out);
+  //     request->send(200, "application/json", out);
+  //   }
+  // });
   
   ws.onEvent(onWsEvent);
   server.addHandler(&ws);
 
   server.begin();
+  // fetchAndCacheQuote();
 }
 
 void loop() {

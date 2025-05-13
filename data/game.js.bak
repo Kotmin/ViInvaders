@@ -343,18 +343,7 @@ function draw() {
     ctx.font = "20px sans-serif";
     ctx.fillText(`Score P1: ${player1.score} | P2: ${player2.score}`, canvas.width / 2 - 110, canvas.height / 2 + 20);
 	
-	getMotivationalQuote();
-	
     ctx.fillText("Press shoot or move to restart", canvas.width / 2 - 150, canvas.height / 2 + 50);
-	
-	
-	ctx.font = "18px sans-serif";
-    const quoteWidth = ctx.measureText(`"${quoteText}"`).width;
-    ctx.fillText(`"${quoteText}"`, (canvas.width - quoteWidth) / 2, canvas.height / 2 + 40);
-
-    ctx.font = "16px sans-serif";
-    const authorWidth = ctx.measureText(`— ${quoteAuthor}`).width;
-    ctx.fillText(`— ${quoteAuthor}`, (canvas.width - authorWidth) / 2, canvas.height / 2 + 65);
 	
 	
     requestAnimationFrame(draw);
