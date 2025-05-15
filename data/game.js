@@ -26,7 +26,7 @@ const fallbackQuotes = [
   { text: "Code is like humor. When you have to explain it, it’s bad.", author: "Cory House" },
   { text: "The best way to get a project done faster is to start sooner.", author: "Jim Highsmith" }
 ];
-
+/*
 async function getMotivationalQuote() {
   try {
     const res = await fetch("https://api.quotable.io/random?maxLength=120&tags=technology|motivational|famous-quotes");
@@ -40,7 +40,52 @@ async function getMotivationalQuote() {
   }
 }
 
+*/
 
+async function getMotivationalQuote() {
+  // 1. Try use device connection
+  try {
+    const online = await fetch("https://api.quotable.io/random?maxLength=120&tags=technology|motivational|famous-quotes");
+    if (online.ok) {
+      const data = await online.json();
+      quoteText = data.content || fallbackQuotes[0].text;
+      quoteAuthor = data.author || fallbackQuotes[0].author;
+      return;
+    }
+  } catch (_) {}
+
+  // 2. else ESP conn
+  try {
+    const local = await fetch("/quote");
+    if (local.ok) {
+      const data = await local.json();
+
+      // case 1: single quote object
+      if (data.content && data.author) {
+        quoteText = data.content;
+        quoteAuthor = data.author;
+        return;
+      }
+
+      // case 2: array of quote objects
+      if (Array.isArray(data) && data.length > 0) {
+        const random = data[Math.floor(Math.random() * data.length)];
+        if (random.content && random.author) {
+          quoteText = random.content;
+          quoteAuthor = random.author;
+          return;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("[Quote] Local ESP fetch failed:", err);
+  }
+
+  // 3. else local code
+  const fallback = fallbackQuotes[Math.floor(Math.random() * fallbackQuotes.length)];
+  quoteText = fallback.text;
+  quoteAuthor = fallback.author;
+}
 
 
 function resizeCanvas() {
@@ -473,6 +518,7 @@ canvas.addEventListener("touchstart", (e) => {
 
 function setupWebSocket() {
   ws = new WebSocket("ws://" + location.hostname + "/ws");
+  // ws = new WebSocket("ws://192.168.4.1/ws");
 
   ws.onmessage = (event) => {
     const data = JSON.parse(event.data);
