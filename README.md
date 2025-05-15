@@ -1,7 +1,13 @@
 # ViInvaders
 Fight you favourite IDE
 
-ArduinoJSON by Benoit
+
+
+<div align="center">
+<img width="709" alt="db_schema_default" src="https://github.com/user-attachments/assets/f56b8070-8394-41ee-aaae-8141bb329fca">
+</div>
+
+
 
 ## Set-up
 
