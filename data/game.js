@@ -59,11 +59,27 @@ async function getMotivationalQuote() {
     const local = await fetch("/quote");
     if (local.ok) {
       const data = await local.json();
-      quoteText = data.content || fallbackQuotes[0].text;
-      quoteAuthor = data.author || fallbackQuotes[0].author;
-      return;
+
+      // case 1: single quote object
+      if (data.content && data.author) {
+        quoteText = data.content;
+        quoteAuthor = data.author;
+        return;
+      }
+
+      // case 2: array of quote objects
+      if (Array.isArray(data) && data.length > 0) {
+        const random = data[Math.floor(Math.random() * data.length)];
+        if (random.content && random.author) {
+          quoteText = random.content;
+          quoteAuthor = random.author;
+          return;
+        }
+      }
     }
-  } catch (_) {}
+  } catch (err) {
+    console.warn("[Quote] Local ESP fetch failed:", err);
+  }
 
   // 3. else local code
   const fallback = fallbackQuotes[Math.floor(Math.random() * fallbackQuotes.length)];
@@ -501,7 +517,8 @@ canvas.addEventListener("touchstart", (e) => {
 
 
 function setupWebSocket() {
-  ws = new WebSocket("ws://" + location.hostname + "/ws");
+  // ws = new WebSocket("ws://" + location.hostname + "/ws");
+  ws = new WebSocket("ws://192.168.4.1/ws");
 
   ws.onmessage = (event) => {
     const data = JSON.parse(event.data);
