@@ -5,34 +5,34 @@
 #include <SPIFFS.h>
 #include <ArduinoJson.h>
 
-// Dane do zewnętrznej sieci (Internet)
+// External network (Internet)
 const char* ssid_sta = "NetworkName";
 const char* password_sta = "SecretPassword";
 
-// Dane do AP lokalnego
+// Local AP (for players)
 const char* ssid = "ViInvaders";
 const char* password = "editorwar";
 
-// Statyczne IP Access Pointa
+// static AP ip conf
 IPAddress apIP(192, 168, 4, 1);
 IPAddress apNetmask(255, 255, 255, 0);
 IPAddress apGateway(192, 168, 4, 1);
 
-// WebServer i WebSocket
+// WebServer WebSocket
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
 
-// Joysticki
+// joystick pinout config
 #define JOY1_X 34
 #define JOY1_SW 25
 #define JOY2_X 35
 #define JOY2_SW 26
 
-// Cytaty
+// quotes
 const char* quoteCachePath = "/quote.json";
 const char* quoteAPI = "https://api.quotable.io/quotes/random?limit=20&maxLength=120&tags=technology|motivational|famous-quotes";
 
-// Wysyłanie danych z joysticków do graczy
+
 void notifyClients() {
   StaticJsonDocument<128> doc;
   doc["j1x"] = analogRead(JOY1_X);
@@ -44,7 +44,7 @@ void notifyClients() {
   ws.textAll(msg);
 }
 
-// Pobierz i zapisz 20 cytatów
+// Get and cache quotes
 void fetchAndCacheQuotes() {
   HTTPClient http;
   http.begin(quoteAPI);
@@ -67,7 +67,7 @@ void fetchAndCacheQuotes() {
   http.end();
 }
 
-// Obsługa WebSocketów
+// WebSocket handle (for joystick communication)
 void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client,
                AwsEventType type, void *arg, uint8_t *data, size_t len) {
   switch (type) {
@@ -90,12 +90,13 @@ void setup() {
   pinMode(JOY1_SW, INPUT_PULLUP);
   pinMode(JOY2_SW, INPUT_PULLUP);
 
+  // Start SPIFFS
   if (!SPIFFS.begin(true)) {
     Serial.println("[SPIFFS] Mount failed");
     return;
   }
 
-  // Najpierw spróbuj połączyć się z Internetem
+  // try to connect with external network
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid_sta, password_sta);
   Serial.print("[WiFi] Connecting to WAN");
@@ -113,7 +114,7 @@ void setup() {
     Serial.println("\n[WiFi] Failed to connect to Internet.");
   }
 
-  // Teraz uruchom lokalny AP
+  // Local AP
   WiFi.disconnect(true);
   delay(500);
   WiFi.mode(WIFI_AP);
@@ -124,13 +125,13 @@ void setup() {
   Serial.print("[AP] IP: ");
   Serial.println(WiFi.softAPIP());
 
-  // Serwowanie plików
+  // File serve
   server.serveStatic("/", SPIFFS, "/");
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
     request->send(SPIFFS, "/index.html", "text/html");
   });
 
-  // Endpoint: cytaty
+  // Endpoint: quotes
   server.on("/quote", HTTP_GET, [](AsyncWebServerRequest *request) {
     if (SPIFFS.exists(quoteCachePath)) {
       request->send(SPIFFS, quoteCachePath, "application/json");
@@ -144,7 +145,7 @@ void setup() {
     }
   });
 
-  // WebSocket
+
   ws.onEvent(onWsEvent);
   server.addHandler(&ws);
 
