@@ -517,8 +517,8 @@ canvas.addEventListener("touchstart", (e) => {
 
 
 function setupWebSocket() {
-  ws = new WebSocket("ws://" + location.hostname + "/ws");
-  // ws = new WebSocket("ws://192.168.4.1/ws");
+  // ws = new WebSocket("ws://" + location.hostname + "/ws");
+  ws = new WebSocket("ws://192.168.4.1/ws");
 
   ws.onmessage = (event) => {
     const data = JSON.parse(event.data);

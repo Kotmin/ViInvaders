@@ -6,23 +6,23 @@
 #include <ArduinoJson.h>
 
 // External network (Internet)
-const char* ssid_sta = "NetworkName";
-const char* password_sta = "SecretPassword";
+// const char* ssid_sta = "NetworkName";
+// const char* password_sta = "SecretPassword";
 
 // Local AP (for players)
 const char* ssid = "ViInvaders";
 const char* password = "editorwar";
 
-// static AP ip conf
+// Static IP for Access Point
 IPAddress apIP(192, 168, 4, 1);
 IPAddress apNetmask(255, 255, 255, 0);
 IPAddress apGateway(192, 168, 4, 1);
 
 // WebServer WebSocket
 AsyncWebServer server(80);
-AsyncWebSocket ws("/ws");
+AsyncWebSocket ws("/ws"); // websocket endpoint
 
-// joystick pinout config
+// joystick pinout
 #define JOY1_X 34
 #define JOY1_SW 25
 #define JOY2_X 35
@@ -136,16 +136,11 @@ void setup() {
     if (SPIFFS.exists(quoteCachePath)) {
       request->send(SPIFFS, quoteCachePath, "application/json");
     } else {
-      StaticJsonDocument<192> doc;
-      doc["content"] = "No internet. Stay sharp, Commander!";
-      doc["author"] = "ESP32";
-      String out;
-      serializeJson(doc, out);
-      request->send(200, "application/json", out);
+      request->send(409);
     }
   });
 
-
+  // WebSocket
   ws.onEvent(onWsEvent);
   server.addHandler(&ws);
 
