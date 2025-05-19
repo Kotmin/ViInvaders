@@ -58,3 +58,25 @@ After proper set up. Upload static files via Sketch Data Upload
 
 After that upload ino file to controller.
 
+
+## Espressif ESP32 ESP-WROOM-32 DevKit pinout 
+https://cdn.forbot.pl/blog/wp-content/uploads/2020/01/ESP_32_DEVKIT_PINOUT.png
+
+<div align="center">
+<img width="709" alt="db_schema_default" src="https://cdn.forbot.pl/blog/wp-content/uploads/2020/01/ESP_32_DEVKIT_PINOUT.png">
+</div>
+
+
+## ℹ️ Additional sources:
+
+https://forbot.pl/blog/leksykon/esp32
+https://www.espressif.com/en/products/devkits/esp32-devkitc/overview
+
+
+https://docs.arduino.cc/software/ide-v2/tutorials/getting-started-ide-v2/
+
+
+And huge community on YouTube 😸
+
+
+
